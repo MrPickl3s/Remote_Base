@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Remote Base Telemetry Payload",
+  "description": "Contract between Freematics ONE+ firmware and Google Apps Script webhook. All payloads follow this schema.",
+  "type": "object",
+  "required": ["bus_id", "event_type", "timestamp", "meta"],
+  "properties": {
+    "bus_id": {
+      "type": "string",
+      "description": "Unique bus identifier, e.g. 'bus_07'. Set in firmware config.",
+      "pattern": "^bus_[0-9]{2,4}$"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["fault", "checkin", "heartbeat", "threshold_alert"],
+      "description": "fault = DM1 active fault codes (Phase 1). checkin = daily mileage/hours report (Phase 3). heartbeat = 4-hour alive ping (Phase 3). threshold_alert = coolant/voltage/DEF threshold exceeded (Phase 3)."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp from GPS clock or RTC."
+    },
+    "faults": {
+      "type": "array",
+      "description": "Present only when event_type is 'fault'. One entry per active DTC from DM1 frame.",
+      "items": {
+        "type": "object",
+        "required": ["spn", "fmi", "occurrence"],
+        "properties": {
+          "spn": {
+            "type": "integer",
+            "description": "Suspect Parameter Number (19-bit). Identifies what failed.",
+            "minimum": 0,
+            "maximum": 524287
+          },
+          "fmi": {
+            "type": "integer",
+            "description": "Failure Mode Indicator (5-bit). Identifies how it failed.",
+            "minimum": 0,
+            "maximum": 31
+          },
+          "occurrence": {
+            "type": "integer",
+            "description": "Occurrence count (7-bit). How many times this fault has occurred.",
+            "minimum": 0,
+            "maximum": 127
+          }
+        }
+      }
+    },
+    "readings": {
+      "type": "object",
+      "description": "Present for checkin and threshold_alert events. Phase 3+.",
+      "properties": {
+        "coolant_temp_c": { "type": "number", "description": "Engine coolant temp in Celsius (PGN 65262, SPN 110)" },
+        "battery_voltage": { "type": "number", "description": "Battery voltage in volts (PGN 65271, SPN 168)" },
+        "def_level_pct": { "type": "number", "description": "DEF tank level as percentage (PGN 65263, SPN 3226)" },
+        "rpm": { "type": "integer", "description": "Engine speed in RPM (PGN 61444, SPN 190)" },
+        "vehicle_speed_kph": { "type": "number", "description": "Vehicle speed in km/h (PGN 65265, SPN 84)" },
+        "engine_hours": { "type": "number", "description": "Total engine hours (PGN 65253, SPN 247)" },
+        "odometer_km": { "type": "number", "description": "Total vehicle distance in km (PGN 65217, SPN 245)" }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["firmware_version"],
+      "properties": {
+        "firmware_version": {
+          "type": "string",
+          "description": "Semantic version of the firmware, e.g. '0.1.0'"
+        },
+        "signal_strength": {
+          "type": "integer",
+          "description": "LTE RSSI in dBm. Typical range: -50 (strong) to -110 (weak)."
+        },
+        "battery_voltage": {
+          "type": "number",
+          "description": "Vehicle battery voltage at time of transmission."
+        },
+        "buffered": {
+          "type": "boolean",
+          "description": "True if this event was stored-and-forwarded (sent after reconnection).",
+          "default": false
+        }
+      }
+    }
+  }
+}
