@@ -18,11 +18,17 @@ Core user story: mechanic gets a text like "Bus 07: SPN 3226 / FMI 0 (x3)" and k
 
 ## Build Commands
 ```bash
-# Firmware — compile for ESP32 (Arduino framework)
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware/remote_base/
+# Firmware — compile (PlatformIO)
+cd firmware
+python -m platformio run
 
-# Firmware — upload via USB
-arduino-cli upload --fqbn esp32:esp32:esp32 --port /dev/ttyUSB0 firmware/remote_base/
+# Firmware — upload via USB (replace COM3 with actual port)
+cd firmware
+python -m platformio run --target upload --upload-port COM3
+
+# Firmware — open serial monitor
+cd firmware
+python -m platformio device monitor
 
 # Cloud — Apps Script is deployed via clasp CLI
 cd cloud/webhook
@@ -31,11 +37,17 @@ clasp push
 
 ## Project Structure
 ```
-firmware/               C++ / Arduino framework
-  remote_base/          Main firmware sketch (merged j1939_monitor + telelogger)
+firmware/               PlatformIO project (C++ / Arduino framework)
+  platformio.ini        Build config — ESP32, 16MB flash, 250kbps J1939
+  src/
+    main.cpp            Main sketch — setup/loop, print, fault alert
+    pgn_decoder.h       J1939 PGN/SPN decoder (EEC1, ET1, DM1, etc.)
+    config.h            Per-bus settings — BUS_ID, WEBHOOK_URL, thresholds
+  lib/
+    FreematicsPlus/     Vendored Freematics library (CAN, GPS, cellular)
   data/                 SPN lookup table for microSD (Phase 3+, not Phase 1-2)
 cloud/
-  webhook/              Google Apps Script — receives POST, triggers Twilio SMS
+  webhook/              Google Apps Script — receives POST, triggers SMS
 config/
   fleet_config.json     Reference schema for the Google Sheet config
 docs/
@@ -74,10 +86,10 @@ See `docs/payload_schema.json` for the full spec. Summary:
 - **Low-power mode**: `enterLowPowerMode()` from Freematics library. Wake sources: voltage change, accelerometer, or timer.
 
 ## Firmware Starting Point
-Fork from Freematics GitHub repo (`stanleyhuangyc/Freematics`), `firmware_v5/` directory:
-- `j1939_monitor.ino` — J1939 broadcast monitoring (CAN bus listening foundation)
-- `telelogger/` — Full telemetry + cellular transmission (connectivity foundation)
-Merge these into `firmware/remote_base/`. Do NOT write firmware from scratch.
+Phase 0 skeleton is in `firmware/src/` — it compiles clean against FreematicsPlus.
+Source of truth for patterns:
+- `j1939_monitor.ino` in Freematics repo — CAN bus listening foundation
+- `telelogger/` in Freematics repo — cellular transmission reference for Phase 1
 
 ## Developer Context
 - Single developer, novice-to-intermediate, builds with AI assistance
