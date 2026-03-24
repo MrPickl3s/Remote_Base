@@ -1,0 +1,28 @@
+# Build artifacts
+firmware/remote_base/build/
+*.o
+*.elf
+*.bin
+*.hex
+
+# Arduino IDE
+*.ino.cpp
+
+# IDE files
+.vscode/
+.pio/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit these
+.env
+secrets.json
+clasp_credentials.json
+
+# Apps Script local dev
+cloud/webhook/.clasp.json
+cloud/webhook/node_modules/

@@ -1,0 +1,173 @@
+// ============================================================
+// Remote Base — Webhook Receiver
+// Google Apps Script deployed as a web app
+// Receives JSON POST from Freematics dongle
+// Sends SMS via email-to-carrier gateway (no Twilio needed)
+// ============================================================
+
+// --- CONFIGURATION ---
+var CONFIG = {
+  // Mechanic's 10-digit number + carrier gateway domain
+  // Verizon:   number@vtext.com
+  // AT&T:      number@txt.att.net
+  // T-Mobile:  number@tmomail.net
+  MECHANIC_SMS_GATEWAY: "15094299805@vtext.com",
+};
+
+// --- MAIN ENTRY POINT ---
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+
+    // Validate required fields
+    if (!payload.bus_id || !payload.event_type || !payload.timestamp) {
+      return buildResponse(400, { error: "Missing required fields: bus_id, event_type, timestamp" });
+    }
+
+    // Route by event type
+    if (payload.event_type === "fault") {
+      handleFault(payload);
+    } else if (payload.event_type === "heartbeat") {
+      handleHeartbeat(payload);
+    } else if (payload.event_type === "checkin") {
+      handleCheckin(payload);
+    } else if (payload.event_type === "threshold_alert") {
+      handleThresholdAlert(payload);
+    } else {
+      return buildResponse(400, { error: "Unknown event_type: " + payload.event_type });
+    }
+
+    return buildResponse(200, { status: "ok", event_type: payload.event_type });
+
+  } catch (err) {
+    Logger.log("doPost error: " + err.toString());
+    return buildResponse(500, { error: err.toString() });
+  }
+}
+
+// --- EVENT HANDLERS ---
+
+function handleFault(payload) {
+  if (!payload.faults || payload.faults.length === 0) {
+    Logger.log("Fault event with no faults array for " + payload.bus_id);
+    return;
+  }
+
+  var smsBody = formatFaultSMS(payload);
+  sendSMS(smsBody);
+  logEvent(payload);
+}
+
+function handleHeartbeat(payload) {
+  // Phase 3+ — just log for now
+  logEvent(payload);
+}
+
+function handleCheckin(payload) {
+  // Phase 3+ — log daily mileage/hours
+  logEvent(payload);
+}
+
+function handleThresholdAlert(payload) {
+  // Phase 3+ — send SMS for threshold breaches
+  logEvent(payload);
+}
+
+// --- SMS FORMATTING ---
+
+function formatFaultSMS(payload) {
+  var lines = [];
+
+  // Header with buffered indicator
+  var header = "FAULT — " + formatBusId(payload.bus_id);
+  if (payload.meta && payload.meta.buffered) {
+    header += " [DELAYED]";
+  }
+  lines.push(header);
+
+  // Each fault on its own line
+  for (var i = 0; i < payload.faults.length; i++) {
+    var f = payload.faults[i];
+    var faultLine = "SPN " + f.spn + " / FMI " + f.fmi;
+    if (f.occurrence && f.occurrence > 0) {
+      faultLine += " (x" + f.occurrence + ")";
+    }
+    lines.push(faultLine);
+  }
+
+  // Timestamp
+  lines.push(formatTimestamp(payload.timestamp));
+
+  return lines.join("\n");
+}
+
+// --- SMS SEND (email-to-carrier gateway) ---
+
+function sendSMS(body) {
+  MailApp.sendEmail({
+    to: CONFIG.MECHANIC_SMS_GATEWAY,
+    subject: "",   // Subject shows up on some phones — keep it blank
+    body: body
+  });
+  Logger.log("SMS sent to " + CONFIG.MECHANIC_SMS_GATEWAY + ":\n" + body);
+}
+
+// --- HELPERS ---
+
+function formatBusId(busId) {
+  // "bus_07" -> "Bus 07"
+  return busId.replace("bus_", "Bus ");
+}
+
+function formatTimestamp(isoString) {
+  try {
+    var dt = new Date(isoString);
+    return Utilities.formatDate(dt, Session.getScriptTimeZone(), "MMM d, h:mm a");
+  } catch (err) {
+    return isoString;
+  }
+}
+
+function buildResponse(statusCode, body) {
+  return ContentService
+    .createTextOutput(JSON.stringify(body))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// --- EVENT LOGGING ---
+// Logs to Apps Script Logger for now
+// Phase 2+: will log to Google Sheet or Supabase
+
+function logEvent(payload) {
+  Logger.log("Event received: " + JSON.stringify(payload));
+}
+
+// --- TEST FUNCTION ---
+// Run this manually in the Apps Script editor to test without a real bus
+// 1. Click the dropdown at the top and select "testSendFault"
+// 2. Click Run
+// 3. Check the mechanic's phone for the text
+
+function testSendFault() {
+  var mockPayload = {
+    bus_id: "bus_07",
+    event_type: "fault",
+    timestamp: new Date().toISOString(),
+    faults: [
+      { spn: 3226, fmi: 0, occurrence: 3 },
+      { spn: 110,  fmi: 16, occurrence: 1 }
+    ],
+    meta: {
+      firmware_version: "0.1.0",
+      signal_strength: -85,
+      battery_voltage: 24.1,
+      buffered: false
+    }
+  };
+
+  var smsBody = formatFaultSMS(mockPayload);
+  Logger.log("SMS preview:\n" + smsBody);
+
+  // When you're ready to send a real test text, uncomment this line:
+  // sendSMS(smsBody);
+}

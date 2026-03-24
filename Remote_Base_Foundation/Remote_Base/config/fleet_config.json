@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Remote Base Fleet Configuration",
+  "description": "Reference schema for the Google Sheet that stores per-bus configuration. Each row in the sheet represents one bus. The dongle reads its config on boot via published CSV endpoint.",
+  "type": "object",
+  "required": ["bus_id", "bus_name", "district", "mechanic_phone"],
+  "properties": {
+    "bus_id": {
+      "type": "string",
+      "description": "Must match the bus_id in firmware config. e.g. 'bus_07'",
+      "examples": ["bus_07", "bus_12", "bus_103"]
+    },
+    "bus_name": {
+      "type": "string",
+      "description": "Human-friendly name. e.g. 'Bus 7 - Route 5 AM/PM'",
+      "examples": ["Bus 7 - Route 5 AM/PM"]
+    },
+    "district": {
+      "type": "string",
+      "description": "School district name. Used for multi-tenant routing in Phase 4+.",
+      "examples": ["Eastmont SD"]
+    },
+    "mechanic_phone": {
+      "type": "string",
+      "description": "Primary alert recipient. E.164 format.",
+      "pattern": "^\\+1[0-9]{10}$",
+      "examples": ["+15095551234"]
+    },
+    "alert_method": {
+      "type": "string",
+      "enum": ["sms", "email", "both"],
+      "default": "sms",
+      "description": "How to deliver alerts. SMS only for Phase 1-3."
+    },
+    "coolant_temp_threshold_c": {
+      "type": "number",
+      "default": 104,
+      "description": "Phase 3+. Alert if coolant temp exceeds this value (Celsius). Cummins warning typically at 104C."
+    },
+    "def_level_threshold_pct": {
+      "type": "number",
+      "default": 10,
+      "description": "Phase 3+. Alert if DEF level drops below this percentage."
+    },
+    "battery_voltage_threshold": {
+      "type": "number",
+      "default": 22.0,
+      "description": "Phase 3+. Alert if battery voltage drops below this value during operation."
+    },
+    "idle_time_limit_min": {
+      "type": "integer",
+      "default": 15,
+      "description": "Phase 3+. Alert if bus idles (RPM > 0, speed = 0) longer than this many minutes."
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Set false to disable alerting for this bus without removing the config row."
+    }
+  }
+}

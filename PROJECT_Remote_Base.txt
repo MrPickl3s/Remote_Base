@@ -1,0 +1,35 @@
+# Remote Base — Fleet Telematics System
+
+## 1. PROJECT NAME
+Remote Base
+
+## 2. WHAT IT DOES
+A fleet telematics system that reads real-time engine and vehicle data from heavy-duty trucks (Cummins engines via J1939/CAN bus) using a Freematics ONE+ Model H device, then transmits that data over cellular (Hologram IoT SIM) to a remote server for monitoring. Built for fleet operators who need visibility into vehicle health, location, and performance from anywhere.
+
+## 3. CURRENT STATE
+Early-stage. The GitHub repo (https://github.com/MrPickl3s/Remote_Base.git) is initialized but empty — no code has been pushed yet. Hardware components (Freematics ONE+ Model H, Hologram SIM) have been selected. The project is in the firmware development and architecture planning phase.
+
+## 4. TECH STACK
+- **Hardware:** Freematics ONE+ Model H (ESP32-based OBD-II adapter)
+- **Protocol:** SAE J1939 over CAN bus (Cummins heavy-duty engines)
+- **Firmware:** Arduino / C++
+- **Connectivity:** Hologram IoT cellular SIM
+- **Version Control:** Git / GitHub
+
+## 5. ARCHITECTURE
+The Freematics device connects to the truck's OBD-II / J1939 diagnostic port and reads engine parameters via CAN bus. The ESP32 on the Freematics board runs custom Arduino/C++ firmware that parses J1939 PGNs and packages the data. That data is transmitted over cellular (Hologram SIM) to a remote endpoint. The server-side architecture (database, dashboard, API) is not yet defined.
+
+## 6. CURRENT BLOCKERS
+No code in the repo yet — the project needs its first working firmware commit. Key unknowns likely include: reliable J1939 PGN parsing on the Freematics hardware, cellular data transmission stability via Hologram, and defining the server-side ingestion pipeline. The jump from "hardware on the bench" to "firmware talking to a real Cummins ECU" is the immediate hurdle.
+
+## 7. NEXT STEPS
+Get baseline firmware running on the Freematics ONE+ that can read J1939 PGNs from a Cummins engine and transmit them over cellular. Push initial code to the GitHub repo. Define the server-side architecture for receiving, storing, and displaying telemetry data.
+
+## 8. DEPLOYMENT
+The firmware deploys directly to the Freematics ONE+ hardware installed in each truck. The monitoring/dashboard side will likely be a web application or API endpoint accessible to fleet operators remotely. Final delivery model TBD.
+
+## 9. CONSTRAINTS
+Hardware-dependent development (need physical access to trucks and Cummins engines for testing). Cellular connectivity costs and coverage in remote/rural areas. Single-developer project. The Freematics ONE+ has ESP32 resource constraints (memory, processing). J1939 documentation and PGN definitions can be hard to source outside of SAE paywalls.
+
+## 10. WISH LIST
+A tool that could auto-generate correct J1939 PGN parsing code for a specific engine family (e.g., Cummins ISX) — mapping raw CAN frames to human-readable parameters (boost pressure, coolant temp, fault codes) without manually cross-referencing SAE J1939 spreadsheets and Cummins-specific proprietary PGNs.

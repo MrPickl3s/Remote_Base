@@ -1,0 +1,47 @@
+Good — let me pull together a full briefing. I'll search across the relevant tech areas for Remote Base first.Here's your Remote Base briefing.
+
+---
+
+## Current State Recap
+
+Your repo is initialized but empty. You have hardware selected (Freematics ONE+ Model H, Hologram SIM) and you're in the firmware development / architecture planning phase. The immediate hurdle is getting baseline firmware that reads J1939 PGNs from a Cummins engine and transmits over cellular.
+
+## What's Changed or Worth Knowing
+
+**Freematics ecosystem — important caveats surfaced.** The Freematics forum has multiple reports of J1939 communication issues on the Model H. The device uses a custom chip (not a true ELM327), and the Model H only supports reading broadcast J1939 traffic — not request/response. Stanley Huang (the creator) has confirmed this limitation and noted that users should not treat the device as an ELM327. This matters for you: broadcast-only means you can passively sniff engine data like RPM, coolant temp, and boost pressure that Cummins ECUs broadcast continuously. But you won't be able to actively request specific PGNs or read DTCs on demand. That's a hard constraint to design around early.
+
+**Freematics also added custom CAN message APIs.** In a recent update, Freematics added APIs for sending custom CAN messages to the ECU, opening up new possibilities and leaving the implementation to the community. This could potentially be useful for more advanced interactions down the line, but proceed with caution on a live truck.
+
+**The existing example code is your starting point.** There's a `j1939_monitor.ino` sketch in the Freematics firmware_v5 directory specifically for Model H J1939 broadcast monitoring. Additionally, the `telelogger` sketch demonstrates full telemetry collection from OBD, GPS, and motion sensors with real-time transmission to a remote server, and it already integrates with Traccar. Between these two sketches, you have most of your firmware skeleton.
+
+**Free J1939 protocol stack for ESP32 — new and significant.** Copperhill Technologies released a fully functional, free SAE J1939 protocol stack for ESP32 in September 2025, covering address claiming, transport protocol (BAM and RTS/CTS), request/response messages, and complete PGN handling — all with zero licensing costs. This is relevant as a reference implementation even though the Freematics has its own abstraction layer. If you ever need to go beyond the Freematics library's capabilities, this gives you a clean ESP32-native fallback.
+
+**The `decoda` Python library solves your wish list item — partially.** Decoda is a utility library for decoding J1939 application data that provides Python objects for PGN/SPN lookup and decoding. The catch: the full SAE spec isn't included due to licensing. If you own the SAE Digital Annex, bundled scripts can convert the XLS file to a usable JSON spec file. The SAE Digital Annex costs money, but it's the definitive source for mapping raw CAN frames to human-readable Cummins parameters. This is the closest thing to your wish list item of auto-generating PGN parsing code.
+
+**Server side — Traccar is your strongest option.** Traccar is an open-source GPS tracking system supporting 200+ protocols and 2000+ device models, with REST API access. Critically, the Freematics telelogger sketch already implements Traccar's protocol natively via UDP. That means your firmware-to-server pipeline has a pre-built path. For a fleet your size, Traccar runs comfortably on a $5 VPS with an afternoon of configuration. You'd get real-time tracking, geofencing, and basic alerting out of the box. For deeper telematics (engine parameters, custom dashboards), you'd need to extend it, but the foundation is solid.
+
+**OpenRemote is a more ambitious alternative** if you want predictive analytics and a rules engine. OpenRemote is a 100% open-source IoT platform with fleet telematics capabilities including predictive algorithms, custom dashboards, and automated alerting based on configurable conditions. Higher setup cost than Traccar, but more extensible. Worth knowing about, not worth pursuing yet.
+
+**Hologram cellular — stable, no concerns.** Hologram continues to operate well for IoT deployments. The main thing to watch: 2G/3G network shutdowns are accelerating across North America in 2025-2026. Make sure your Freematics Model H's LTE module is on a 4G band that's well-supported in your operating area (rural Washington/Pacific Northwest). Hologram's eUICC SIMs handle carrier switching, so you have some resilience here, but check coverage maps for your actual routes.
+
+## Cross-Knowledge-Base Connections
+
+From your **Claude Folder** knowledge: once you start writing firmware, the `.claude/` folder structure could help you manage the project with Claude Code. Set up a CLAUDE.md with your hardware constraints (ESP32 memory limits, J1939 broadcast-only, Freematics library API quirks) and Claude Code would stay within those guardrails. Given the embedded nature of this project, a custom skill for J1939 PGN reference would be high-value.
+
+From the **Superpowers methodology**: the test-driven approach doesn't translate directly to embedded firmware (you can't unit test against a real ECU easily), but the design-before-code discipline does. Getting the PGN mapping spec nailed down before writing parsing code would prevent a lot of rework.
+
+## Disruption-to-Value Assessment
+
+| Item | Verdict |
+|---|---|
+| Freematics `j1939_monitor` + `telelogger` sketches | **Pause and adopt.** These are your starting firmware, not optional enhancements. Fork them. |
+| Traccar as server backend | **Integrate when convenient.** Don't build a custom server. Traccar gives you 80% of what you need free. |
+| Copperhill free J1939 stack | **Keep building.** Good reference material. Don't switch away from Freematics library unless you hit a wall. |
+| SAE Digital Annex + Decoda | **Integrate when convenient.** Buying the annex and generating a JSON PGN database would dramatically speed up your Cummins-specific parsing. |
+| OpenRemote | **Keep building.** Overkill for current stage. Revisit when you need custom dashboards. |
+
+## Recommended Next Step
+
+Your fastest path to first code in the repo: clone the Freematics `j1939_monitor.ino` and `telelogger` sketches into your Remote_Base repo, merge them into a single firmware that reads J1939 broadcast PGNs and transmits via cellular to a Traccar instance. Get it compiling and pushed. That's your milestone. Everything else (Cummins-specific PGN parsing, dashboards, alerts) layers on top of that working pipeline.
+
+Want to go into Build Mode on any of this?
